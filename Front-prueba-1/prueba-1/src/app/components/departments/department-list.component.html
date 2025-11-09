@@ -1,0 +1,8 @@
+<div>
+	<h3>Departamentos</h3>
+	<ul>
+		<li *ngFor="let d of departments">
+			{{ d.name }} <button (click)="eliminar(d.id)">Eliminar</button>
+		</li>
+	</ul>
+</div>

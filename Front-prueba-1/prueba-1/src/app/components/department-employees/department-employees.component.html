@@ -1,0 +1,6 @@
+<div>
+	<h4>Empleados del departamento {{ departmentId }}</h4>
+	<ul>
+		<li *ngFor="let e of employees">{{ e.name }} — {{ e.position || 'Sin puesto' }}</li>
+	</ul>
+</div>

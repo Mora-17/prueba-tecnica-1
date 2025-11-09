@@ -1,0 +1,9 @@
+<div>
+	<h3>Empleados</h3>
+	<ul>
+		<li *ngFor="let e of employees">
+			<strong>{{ e.name }}</strong> — {{ e.position || 'Sin puesto' }} (Dept: {{ e.departmentId || 'N/A' }})
+			<button (click)="eliminar(e.id)">Eliminar</button>
+		</li>
+	</ul>
+</div>
