@@ -1,59 +1,231 @@
-# Prueba1
+import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Employee, EmployeeService } from '../../services/employee.service';
+import { Department, DepartmentService } from '../../services/department.service';
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.7.
+@Component({
+  selector: 'app-employee-form',
+  template: `
+    <div class="container fade-in">
+      <div class="card">
+        <h4>{{ isEditMode ? '✏️ Actualizar Empleado' : '➕ Nuevo Empleado' }}</h4>
+        
+        <form (ngSubmit)="guardar()" #employeeForm="ngForm">
+          <div class="form-group">
+            <label>Nombre *</label>
+            <input 
+              type="text" 
+              [(ngModel)]="model.nombre" 
+              name="nombre"
+              placeholder="Ingrese el nombre"
+              required
+              #nombreInput="ngModel"
+            />
+            <span class="error" *ngIf="nombreInput.invalid && nombreInput.touched">
+              El nombre es obligatorio
+            </span>
+          </div>
+          
+          <div class="form-group">
+            <label>Primer Apellido *</label>
+            <input 
+              type="text" 
+              [(ngModel)]="model.apellido" 
+              name="apellido"
+              placeholder="Ingrese el primer apellido"
+              required
+              #apellidoInput="ngModel"
+            />
+            <span class="error" *ngIf="apellidoInput.invalid && apellidoInput.touched">
+              El primer apellido es obligatorio
+            </span>
+          </div>
+          
+          <div class="form-group">
+            <label>Segundo Apellido</label>
+            <input 
+              type="text" 
+              [(ngModel)]="model.apellido2" 
+              name="apellido2"
+              placeholder="Ingrese el segundo apellido (opcional)"
+            />
+          </div>
+          
+          <div class="form-group">
+            <label>Código de Empleado *</label>
+            <input 
+              type="number" 
+              [(ngModel)]="model.codigoEmpleado" 
+              name="codigoEmpleado"
+              placeholder="Ej: 1001"
+              required
+              [disabled]="isEditMode"
+              #codigoInput="ngModel"
+            />
+            <small style="color: var(--gray); display: block; margin-top: 0.25rem;">
+              {{ isEditMode ? 'El código no se puede modificar' : 'Este código debe ser único' }}
+            </small>
+            <span class="error" *ngIf="codigoInput.invalid && codigoInput.touched">
+              El código de empleado es obligatorio
+            </span>
+          </div>
+          
+          <div class="form-group">
+            <label>Departamento *</label>
+            <select 
+              [(ngModel)]="model.codigoDepartamento" 
+              name="codigoDepartamento"
+              required
+              #deptoInput="ngModel"
+            >
+              <option [ngValue]="undefined">Seleccione un departamento</option>
+              <option 
+                *ngFor="let dep of departments" 
+                [ngValue]="dep.codigoDepartamento"
+              >
+                {{dep.nombreDepartamento}} (Código: {{dep.codigoDepartamento}})
+              </option>
+            </select>
+            <span class="error" *ngIf="deptoInput.invalid && deptoInput.touched">
+              Debe seleccionar un departamento
+            </span>
+          </div>
+          
+          <div class="form-actions">
+            <button 
+              type="submit" 
+              class="btn btn-primary"
+              [disabled]="employeeForm.invalid || saving"
+            >
+              <span *ngIf="!saving">
+                {{ isEditMode ? '💾 Actualizar' : '💾 Guardar' }} Empleado
+              </span>
+              <span *ngIf="saving">Guardando...</span>
+            </button>
+            <button 
+              type="button" 
+              class="btn btn-secondary" 
+              (click)="cancelar()"
+              [disabled]="saving"
+            >
+              ❌ Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `,
+  styles: [`
+    .error {
+      color: var(--danger);
+      font-size: 0.875rem;
+      margin-top: 0.25rem;
+      display: block;
+    }
+    
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+    
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  `]
+})
+export class EmployeeFormComponent implements OnInit {
+  model: Partial<Employee> = {};
+  departments: Department[] = [];
+  isEditMode = false;
+  employeeId?: string;
+  saving = false;
 
-## Development server
+  constructor(
+    private empService: EmployeeService,
+    private depService: DepartmentService,
+    private router: Router,
+    private route: ActivatedRoute
+  ) {}
 
-To start a local development server, run:
+  ngOnInit() {
+    this.cargarDepartamentos();
+    
+    // Verificar si estamos en modo edición
+    this.route.params.subscribe(params => {
+      if (params['id']) {
+        this.employeeId = params['id'];
+        this.isEditMode = true;
+        this.cargarEmpleado(this.employeeId);
+      }
+    });
+  }
 
-```bash
-ng serve
-```
+  cargarDepartamentos() {
+    this.depService.getAll().subscribe({
+      next: (deps) => this.departments = deps,
+      error: (err) => {
+        console.error('Error cargando departamentos:', err);
+        alert('Error al cargar los departamentos');
+      }
+    });
+  }
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+  cargarEmpleado(id: string) {
+    this.empService.getById(id).subscribe({
+      next: (emp) => {
+        this.model = { ...emp };
+      },
+      error: (err) => {
+        console.error('Error cargando empleado:', err);
+        alert('Error al cargar el empleado');
+        this.router.navigate(['/empleados']);
+      }
+    });
+  }
 
-## Code scaffolding
+  guardar() {
+    if (!this.model.nombre || !this.model.apellido || 
+        !this.model.codigoEmpleado || !this.model.codigoDepartamento) {
+      alert('Por favor complete todos los campos obligatorios');
+      return;
+    }
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+    this.saving = true;
 
-```bash
-ng generate component component-name
-```
+    if (this.isEditMode && this.employeeId) {
+      // Actualizar empleado existente
+      this.empService.update(this.employeeId, this.model).subscribe({
+        next: () => {
+          alert('Empleado actualizado exitosamente');
+          this.router.navigate(['/empleados']);
+        },
+        error: (err) => {
+          console.error('Error:', err);
+          alert('Error al actualizar empleado: ' + (err.error?.mensaje || err.message));
+          this.saving = false;
+        }
+      });
+    } else {
+      // Crear nuevo empleado
+      this.empService.create(this.model).subscribe({
+        next: () => {
+          alert('Empleado creado exitosamente');
+          this.router.navigate(['/empleados']);
+        },
+        error: (err) => {
+          console.error('Error:', err);
+          alert('Error al crear empleado: ' + (err.error?.mensaje || err.message));
+          this.saving = false;
+        }
+      });
+    }
+  }
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+  cancelar() {
+    if (confirm('¿Está seguro de cancelar? Los cambios no se guardarán.')) {
+      this.router.navigate(['/empleados']);
+    }
+  }
+}
